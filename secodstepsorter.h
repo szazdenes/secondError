@@ -2,6 +2,9 @@
 #define SECODSTEPSORTER_H
 
 #include <QMainWindow>
+#include <QDir>
+#include <QtDebug>
+#include <QTextStream>
 
 namespace Ui {
 class secodStepSorter;
@@ -24,6 +27,7 @@ private slots:
 
 private:
     Ui::secodStepSorter *ui;
+    QMap<QString, QList<QPair<double, double> > > errorMap, sortedErrorMap;
 };
 
 #endif // SECODSTEPSORTER_H

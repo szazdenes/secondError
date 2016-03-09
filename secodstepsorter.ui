@@ -18,7 +18,7 @@
     <item row="0" column="0">
      <widget class="QPushButton" name="pushButton">
       <property name="text">
-       <string>Select directory</string>
+       <string>Start</string>
       </property>
      </widget>
     </item>
