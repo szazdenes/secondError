@@ -7,11 +7,13 @@ secodStepSorter::secodStepSorter(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    geom = new GeomTransform();
     connect(this, SIGNAL(signalWriteToList(QString)), this, SLOT(slotWriteToList(QString)));
 }
 
 secodStepSorter::~secodStepSorter()
 {
+    delete geom;
     delete ui;
 }
 
@@ -134,6 +136,93 @@ QPair<double, double> secodStepSorter::getStD(QList<QPair<double, double> > list
     return result;
 }
 
+void secodStepSorter::paint()
+{
+    QPainter painter;
+    QPen pen;
+
+    double size = 1000;
+
+    QImage im=QImage(size,size,QImage::Format_ARGB32);
+    painter.begin(&im);
+
+    painter.fillRect(0,0,size,size,Qt::white);
+    painter.drawEllipse(QPointF(size/2.0,size/2.0),3,3);
+    painter.drawEllipse(QPointF(size/2.0,size/2.0),5,5);
+    painter.drawEllipse(QPointF(size/2.0,size/2.0),size/2, size/2);
+
+    QVector2D sunPos;
+    QList<QVector2D> points;
+
+    for(int i = 0; i < im.width(); i++){
+        for(int j = 0; j < im.height(); j++){
+            if(QVector2D(i-size/2.0, size/2.0 - j).length() <= (size/2.0)){
+                points.append(QVector2D(i,j));
+            }
+        }
+    }
+
+    double count = 0;
+
+    foreach(QString str, errorMap.keys()){
+        double delta, elev, th1, th2;
+
+        QStringList splitKeys = str.split(" ");
+        delta = QString(splitKeys.takeFirst()).toDouble();
+        elev = QString(splitKeys.takeFirst()).toDouble();
+        th1 = QString(splitKeys.takeFirst()).toDouble();
+        th2 = QString(splitKeys.takeFirst()).toDouble();
+
+        sunPos = geom->fisheye2Draw(QVector2D(Pi/2.0-Pi*elev/180.0,0), size);
+        pen.setColor(Qt::red);
+        pen.setWidth(3);
+        painter.setPen(pen);
+        painter.drawPoint(sunPos.x(), sunPos.y());
+
+        QVector3D sunDescartes = geom->fisheye2Descartes(geom->draw2Fisheye(sunPos, size));
+
+        pen.setColor(Qt::blue);
+        pen.setWidth(1);
+        painter.setPen(pen);
+
+        QList<QVector3D> p1, p2;
+
+        for(int i = 0; i < points.size(); i++){
+            QVector3D currentp1 = geom->fisheye2Descartes(geom->draw2Fisheye(points.at(i), size));
+            if((acos(QVector3D::dotProduct(currentp1.normalized(), sunDescartes.normalized())) * 180.0/Pi) >= th1-0.5 && (acos(QVector3D::dotProduct(currentp1.normalized(), sunDescartes.normalized())) * 180.0/Pi) < th1+0.5)
+                p1.append(currentp1);
+            QVector3D currentp2 = geom->fisheye2Descartes(geom->draw2Fisheye(points.at(i), size));
+            if((acos(QVector3D::dotProduct(currentp2.normalized(), sunDescartes.normalized())) * 180.0/Pi) >= th2-0.5 && (acos(QVector3D::dotProduct(currentp2.normalized(), sunDescartes.normalized())) * 180.0/Pi) < th2+0.5)
+                p2.append(currentp2);
+        }
+
+        for(int i = 0; i < p1.size(); i++){
+            for(int j = 0; j < p2.size(); j++){
+                QVector3D v1 = QVector3D::crossProduct(p1.at(i), sunDescartes).normalized();
+                QVector3D v2 = QVector3D::crossProduct(p2.at(j), sunDescartes).normalized();
+                if((acos(QVector3D::dotProduct(v1.normalized(), v2.normalized())) * 180.0/Pi) >= delta-0.5 && (acos(QVector3D::dotProduct(v1.normalized(), v2.normalized())) * 180.0/Pi) < delta + 0.5){
+                    QVector2D p1Draw = geom->fisheye2Draw(geom->descartes2Fisheye(p1.at(i)), size);
+                    QVector2D p2Draw = geom->fisheye2Draw(geom->descartes2Fisheye(p2.at(j)), size);
+                    painter.drawPoint(p1Draw.x(), p1Draw.y());
+                    painter.drawPoint(p2Draw.x(), p2Draw.y());
+                }
+            }
+            QApplication::processEvents();
+        }
+
+
+        count++;
+        emit signalWriteToList("Image " + QString::number(100*count/240.0) + " % ready.");
+        QApplication::processEvents();
+
+    }
+
+    painter.end();
+    im.save("a.png");
+    emit signalWriteToList("Image saved.");
+
+}
+
 void secodStepSorter::on_pushButton_2_clicked()
 {
     if(errorMap.isEmpty() || sortedErrorMap.isEmpty())
@@ -169,6 +258,16 @@ void secodStepSorter::on_pushButton_2_clicked()
 
         outfile1.close();
         outfile2.close();
+    }
+
+}
+
+void secodStepSorter::on_pushButton_3_clicked()
+{
+    if(errorMap.isEmpty() || sortedErrorMap.isEmpty())
+        emit signalWriteToList("Data not calculated, press Start button.");
+    else{
+        paint();
     }
 
 }

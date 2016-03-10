@@ -18,8 +18,10 @@ UI_DIR = ./ui
 
 
 SOURCES += main.cpp\
-        secodstepsorter.cpp
+        secodstepsorter.cpp\
+        geomtransform.cpp
 
-HEADERS  += secodstepsorter.h
+HEADERS  += secodstepsorter.h\
+            geomtransform.h
 
 FORMS    += secodstepsorter.ui
