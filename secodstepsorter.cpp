@@ -28,6 +28,7 @@ void secodStepSorter::on_pushButton_clicked()
 {
     errorMap.clear();
     sortedErrorMap.clear();
+    ui->listWidget->clear();
 
     QDir dir("/home/denes/Documents/Labor/Viking/2ndStepSorter/data");
     QStringList fileList(dir.entryList(QStringList(), QDir::Files | QDir::NoDotAndDotDot));
@@ -108,4 +109,66 @@ void secodStepSorter::on_pushButton_clicked()
     }
 
     emit signalWriteToList("Ready.");
+}
+
+QPair<double, double> secodStepSorter::getAverage(QList<QPair<double, double> > list)
+{
+    QPair<double, double> result(0,0);
+    for (int i = 0; i < list.size(); i++){
+        result.first += (double)list.at(i).first / (double)list.size();
+        result.second += (double)list.at(i).second / (double)list.size();
+    }
+    return result;
+}
+
+QPair<double, double> secodStepSorter::getStD(QList<QPair<double, double> > list)
+{
+    QPair<double, double> result(0,0);
+    QPair<double, double> average = getAverage(list);
+    for (int i = 0; i < list.size(); i++){
+        result.first += (((double)list.at(i).first - average.first)*((double)list.at(i).first - average.first)) / (double)list.size();
+        result.second += (((double)list.at(i).second - average.second)*((double)list.at(i).second - average.second)) / (double)list.size();
+    }
+    result.first = qSqrt(result.first);
+    result.second = qSqrt(result.second);
+    return result;
+}
+
+void secodStepSorter::on_pushButton_2_clicked()
+{
+    if(errorMap.isEmpty() || sortedErrorMap.isEmpty())
+        emit signalWriteToList("Data not calculated, press Start button.");
+
+    else{
+
+        QString filename(QFileDialog::getSaveFileName());
+        QFile outfile1(filename + "_sit"), outfile2(filename + "_ranges");
+        if(!outfile1.fileName().endsWith(".csv"))
+            outfile1.setFileName(outfile1.fileName() + ".csv");
+        if(!outfile2.fileName().endsWith(".csv"))
+            outfile2.setFileName(outfile2.fileName() + ".csv");
+        outfile1.open(QIODevice::WriteOnly | QIODevice::Text);
+        QTextStream out1(&outfile1);
+        outfile2.open(QIODevice::WriteOnly | QIODevice::Text);
+        QTextStream out2(&outfile2);
+
+        out1 << "#parameters\telev_error_ave\telev_error_std\tazimuth_error_ave\tazimuth_error_std\n";
+        out2 << "#parameters\telev_error_ave\telev_error_std\tazimuth_error_ave\tazimuth_error_std\n";
+
+        QMap<QString, QPair<double, double> > aveResultMap, aveSortedResultMap, stdResultMap, stdSortedResultMap;
+        foreach(QString str, errorMap.keys()){
+            aveResultMap[str] = getAverage(errorMap[str]);
+            stdResultMap[str] = getStD(errorMap[str]);
+            out1 << str + "\t" + QString::number(aveResultMap[str].first) + "\t" + QString::number(stdResultMap[str].first) + "\t" + QString::number(aveResultMap[str].second) + "\t" + QString::number(stdResultMap[str].second) + "\n";
+        }
+        foreach(QString str, sortedErrorMap.keys()){
+            aveSortedResultMap[str] = getAverage(sortedErrorMap[str]);
+            stdSortedResultMap[str] = getStD(sortedErrorMap[str]);
+            out2 << str + "\t" + QString::number(aveSortedResultMap[str].first) + "\t" + QString::number(stdSortedResultMap[str].first) + "\t" + QString::number(aveSortedResultMap[str].second) + "\t" + QString::number(stdSortedResultMap[str].second) + "\n";
+        }
+
+        outfile1.close();
+        outfile2.close();
+    }
+
 }
