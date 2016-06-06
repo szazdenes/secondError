@@ -39,6 +39,7 @@ void secodStepSorter::on_pushButton_clicked()
             fileList.replace(fileList.indexOf(str), dir.absoluteFilePath(str));
     }
 
+    int numAll = 0, numNoAntiSun = 0;
     foreach(QString currentFileName, fileList){
         QFile currentFile(currentFileName);
         if(!currentFile.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -55,7 +56,11 @@ void secodStepSorter::on_pushButton_clicked()
                 key = QString::number(a) + " " + QString::number(b) + " " + QString::number(c) + " " + QString::number(d);
                 values.first = e;
                 values.second = f;
-                errorMap[key].append(values);
+                numAll++;
+                if(values.second < 90 && values.second > -90){
+                    errorMap[key].append(values);
+                    numNoAntiSun++;
+                }
             }
         }
         currentFile.close();
@@ -111,6 +116,7 @@ void secodStepSorter::on_pushButton_clicked()
     }
 
     emit signalWriteToList("Ready.");
+    emit signalWriteToList("No antisun ratio: " + QString::number((double)numNoAntiSun / (double)numAll));
 }
 
 QPair<double, double> secodStepSorter::getAverage(QList<QPair<double, double> > list)
